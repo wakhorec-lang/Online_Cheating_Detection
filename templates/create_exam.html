@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Create Exam</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+
+<div class="form-wrapper">
+    <div class="form-card">
+        <h2>Create Exam</h2>
+
+        <form method="POST">
+            <div class="form-group">
+                <label>Exam Title</label>
+                <input type="text" name="title" placeholder="Exam Title" required>
+            </div>
+
+            <div class="form-group">
+                <label>Exam Type</label>
+                <select name="exam_type" required>
+                    <option value="MCQ" selected>Multiple Choice</option>
+                    <option value="Written">Written Exam</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label>Duration (minutes)</label>
+                <input type="number" name="duration" placeholder="Duration (minutes)" required>
+            </div>
+
+            <button type="submit" class="btn btn-primary">Create Exam</button>
+        </form>
+
+        <p class="help-links">Already created exams can be managed from your <a href="{{ url_for('admin_dashboard') }}">dashboard</a>.</p>
+    </div>
+</div>
+
+</body>
+</html>

@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>View Questions</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+
+<div class="page-shell">
+    <div class="top-bar">
+        <div class="brand">Proctor<span>AI</span></div>
+        <a class="btn btn-secondary" href="{{ url_for('admin_dashboard') }}">⬅ Back to Dashboard</a>
+    </div>
+
+    <div class="table-panel">
+        <h2>📘 {{ exam.title }} - Questions</h2>
+
+        {% for q in questions %}
+            <div class="question-card">
+                <p><b>Q{{ loop.index }}. {{ q.question }}</b></p>
+                {% if exam.exam_type != 'Written' %}
+                    <p>A) {{ q.option1 }}</p>
+                    <p>B) {{ q.option2 }}</p>
+                    <p>C) {{ q.option3 }}</p>
+                    <p>D) {{ q.option4 }}</p>
+                    <p class="status-pill pass">✔ Correct Answer: {{ q.correct_answer }}</p>
+                {% else %}
+                    <p class="status-pill warning">Written answer question — no options required.</p>
+                {% endif %}
+            </div>
+        {% endfor %}
+
+        {% if questions|length == 0 %}
+            <p>No questions added yet.</p>
+        {% endif %}
+    </div>
+</div>
+
+</body>
+</html>

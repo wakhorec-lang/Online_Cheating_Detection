@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Admin Register</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+
+<div class="login-container">
+    <div class="login-card">
+        <div class="badge">Admin Registration</div>
+
+        <form method="POST">
+            <div class="input-group">
+                <label>Name</label>
+                <input type="text" name="name" required>
+            </div>
+            <div class="input-group">
+                <label>Email</label>
+                <input type="email" name="email" required>
+            </div>
+            <div class="input-group">
+                <label>Password</label>
+                <input type="password" name="password" required>
+            </div>
+
+            <button type="submit" class="btn btn-primary login-btn">Register</button>
+        </form>
+
+        <p class="help-links">Already registered? <a href="{{ url_for('admin_login') }}">Login</a></p>
+    </div>
+</div>
+
+</body>
+</html>

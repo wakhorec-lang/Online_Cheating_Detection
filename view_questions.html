@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Questions</title>
+</head>
+<body>
+
+<h2>Questions</h2>
+
+{% for q in questions %}
+    <p><b>{{ q.question }}</b></p>
+    <ul>
+        <li>{{ q.option1 }}</li>
+        <li>{{ q.option2 }}</li>
+        <li>{{ q.option3 }}</li>
+        <li>{{ q.option4 }}</li>
+    </ul>
+{% endfor %}
+
+</body>
+</html>

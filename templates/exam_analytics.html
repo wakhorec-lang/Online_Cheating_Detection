@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Exam Analytics</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+
+<div class="dashboard-wrapper">
+
+    <div class="sidebar">
+        <h2 class="logo">Admin Panel</h2>
+        <ul>
+            <li><a href="{{ url_for('admin_dashboard') }}">Dashboard</a></li>
+            <li><a href="{{ url_for('admin_logout') }}">Logout</a></li>
+        </ul>
+    </div>
+
+    <div class="main-content">
+
+        <div class="welcome-card">
+            <h2>Analytics - {{ exam.title }}</h2>
+        </div>
+
+        <!-- Stats -->
+        <div class="stats-grid">
+            <div class="stat-card">
+                <h3>{{ total_students }}</h3>
+                <p>Total Attempts</p>
+            </div>
+            <div class="stat-card">
+                <h3>{{ pass_count }}</h3>
+                <p>Pass</p>
+            </div>
+            <div class="stat-card">
+                <h3>{{ fail_count }}</h3>
+                <p>Fail</p>
+            </div>
+        </div>
+
+        <!-- Chart -->
+        <div class="chart-card">
+            <canvas id="resultChart"></canvas>
+        </div>
+
+        <!-- Result Table -->
+        <h3>Student Performance</h3>
+
+        <table class="result-table">
+            <tr>
+                <th>Student Name</th>
+                <th>Score</th>
+                <th>Status</th>
+            </tr>
+
+            {% for r in results %}
+            <tr>
+                <td>{{ r.name }}</td>
+                <td>{{ r.score }}</td>
+                <td class="{{ 'pass' if r.score >= 5 else 'fail' }}">
+                    {{ 'Pass' if r.score >= 5 else 'Fail' }}
+                </td>
+            </tr>
+            {% endfor %}
+        </table>
+
+    </div>
+
+</div>
+
+<script>
+const ctx = document.getElementById('resultChart');
+
+new Chart(ctx, {
+    type: 'pie',
+    data: {
+        labels: ['Pass', 'Fail'],
+        datasets: [{
+            data: [{{ pass_count }}, {{ fail_count }}],
+            backgroundColor: ['#28a745', '#dc3545']
+        }]
+    },
+    options: {
+        responsive: true
+    }
+});
+</script>
+
+</body>
+</html>

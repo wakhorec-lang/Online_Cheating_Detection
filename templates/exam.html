@@ -1,0 +1,821 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Exam</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+
+<body data-exam-type="{{ exam_type }}">
+<div class="page-shell">
+
+<input type="hidden" id="student_id" value="{{ student_id }}">
+<input type="hidden" id="exam_id" value="{{ exam_id }}">
+<input type="hidden" id="duration_minutes" value="{{ duration or 0 }}">
+
+<div class="exam-layout">
+    <aside class="panel exam-left-panel">
+        <div class="inline-panel-header">
+            <h2>Live Proctoring</h2>
+            <span class="badge">Monitoring</span>
+        </div>
+
+        <div class="status-grid">
+            <div class="status-card">
+                <span>Face Status</span>
+                <strong id="statusFace">Safe</strong>
+            </div>
+            <div class="status-card">
+                <span>Head Track</span>
+                <strong id="statusHead">Centered</strong>
+            </div>
+            <div class="status-card">
+                <span>Browser Status</span>
+                <strong id="statusBrowser">Active</strong>
+            </div>
+            <div class="status-card">
+                <span>Total Violations</span>
+                <strong id="statusViolations">0</strong>
+            </div>
+        </div>
+
+        <div id="warningBox" class="warning-box safe">✅ Safe</div>
+
+        <div class="camera-card">
+            <div class="camera-title">Live Camera Feed</div>
+            <div class="video-frame" style="background: #000; position: relative; width: 100%; height: 280px; overflow: hidden;">
+                <video 
+                    id="video" 
+                    width="640" 
+                    height="480"
+                    autoplay 
+                    muted 
+                    playsinline
+                    style="width: 100%; height: 100%; display: block; object-fit: cover; background: #000;">
+                </video>
+                <canvas id="cameraOverlay" style="position: absolute; top: 0; left: 0; display: none;"></canvas>
+            </div>
+            <p class="camera-note">Your camera is being monitored for proctoring compliance.</p>
+        </div>
+    </aside>
+
+    <main class="panel exam-main-panel">
+        <div class="exam-topbar">
+            <div>
+                <span class="eyebrow">Question <span id="currentQuestion">1</span> of {{ questions|length }}</span>
+                <h2 class="question-title" id="questionTitle">{{ questions[0].question if questions else 'Exam Question' }}</h2>
+                <p class="exam-type-label">Exam Type: {{ exam_type }}</p>
+            </div>
+            <div class="timer-pill">Time Remaining: <span id="timer">00:00</span></div>
+        </div>
+
+        <div class="start-box" id="startBox">
+            <h3>Ready to begin?</h3>
+            <p>Start your exam under live AI proctoring. <strong>Fullscreen mode will be required.</strong></p>
+            <button id="startExamBtn" type="button" class="btn btn-primary">Start Exam</button>
+        </div>
+
+        <form method="POST" id="examForm" action="/exam/{{ exam_id }}">
+            {% if exam_type == 'Written' %}
+                {% for q in questions %}
+                <div class="question-card" data-index="{{ loop.index0 }}" id="question-{{ loop.index }}">
+                    <div class="question-card-header">
+                        <span class="question-label">Q{{ loop.index }}</span>
+                        <p class="question-text">{{ q.question }}</p>
+                    </div>
+
+                    <div class="options-group">
+                        <textarea name="written_{{ q.id }}" rows="8" placeholder="Enter your answer here..." required></textarea>
+                    </div>
+                </div>
+                {% endfor %}
+            {% else %}
+                {% for q in questions %}
+                <div class="question-card" data-index="{{ loop.index0 }}" id="question-{{ loop.index }}">
+                    <div class="question-card-header">
+                        <span class="question-label">Q{{ loop.index }}</span>
+                        <p class="question-text">{{ q.question }}</p>
+                    </div>
+
+                    <div class="options-group">
+                        <label class="option-item"><input type="radio" name="{{ q.id }}" value="A"><span>A</span> {{ q.option_a }}</label>
+                        <label class="option-item"><input type="radio" name="{{ q.id }}" value="B"><span>B</span> {{ q.option_b }}</label>
+                        <label class="option-item"><input type="radio" name="{{ q.id }}" value="C"><span>C</span> {{ q.option_c }}</label>
+                        <label class="option-item"><input type="radio" name="{{ q.id }}" value="D"><span>D</span> {{ q.option_d }}</label>
+                    </div>
+                </div>
+                {% endfor %}
+            {% endif %}
+
+            <div class="action-row">
+                <button type="button" class="btn btn-secondary" id="prevBtn">Previous</button>
+                <button type="button" class="btn btn-primary" id="nextBtn">Next Question</button>
+                <button type="button" class="btn btn-danger" id="submitFormBtn">Submit Exam</button>
+            </div>
+        </form>
+    </main>
+
+    <aside class="panel exam-right-panel">
+        <div class="nav-box">
+            <h3>Question Navigator</h3>
+            <div class="navigator-grid">
+                {% for q in questions %}
+                <button type="button" class="question-step" data-index="{{ loop.index0 }}">{{ loop.index }}</button>
+                {% endfor %}
+            </div>
+        </div>
+
+        <div class="summary-box">
+            <h3>Exam Summary</h3>
+            <div class="summary-stats">
+                <div class="summary-stat">
+                    <span>Answered</span>
+                    <strong id="answeredCount">0</strong>
+                </div>
+                <div class="summary-stat">
+                    <span>Total</span>
+                    <strong>{{ questions|length }}</strong>
+                </div>
+            </div>
+            <p class="summary-note">All answers are auto-saved as you progress.</p>
+            <button type="button" id="submitSideBtn" class="btn btn-danger">Submit Exam</button>
+        </div>
+    </aside>
+</div>
+</div>
+
+<!-- 🔥 FIX #1: Configure locateFile BEFORE loading MediaPipe scripts (critical for WASM) -->
+<script>
+    // 🔥 CRITICAL: Set up locateFile callback to find .data and .wasm files from CDN
+    window.locateFile = function(filename) {
+        // Maps local filenames to CDN URLs where WASM/data assets are hosted
+        const assetMap = {
+            // FaceMesh assets
+            'face_mesh_solution_packed_assets.data': 
+                'https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh@0.4.1633559619/face_mesh_solution_packed_assets.data',
+            'face_mesh_solution_packed_assets.wasm': 
+                'https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh@0.4.1633559619/face_mesh_solution_packed_assets.wasm',
+            
+            // Drawing utils assets (if needed)
+            'drawing_utils_solution_packed_assets.wasm':
+                'https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils@0.2.1566991693/drawing_utils_solution_packed_assets.wasm'
+        };
+        
+        if (assetMap[filename]) {
+            console.log(`✅ Mapping asset: ${filename} → CDN URL`);
+            return assetMap[filename];
+        }
+        
+        // Fallback: try CDN with original filename
+        return 'https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh@0.4.1633559619/' + filename;
+    };
+    
+    console.log('🔧 locateFile callback configured for WASM assets');
+</script>
+
+<!-- ✅ MEDIAIPE ENABLED - With WASM CDN configuration -->
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils@0.3.1633559619/camera_utils.js" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils@0.2.1566991693/drawing_utils.js" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh@0.4.1633559619/face_mesh.js" crossorigin="anonymous"></script>
+
+<!-- 🔥 FIX #2: Diagnostic utility to verify WASM and asset loading -->
+<script>
+    // ✅ NEW: Check script loading status with timeout
+    let scriptsReadyCheck = 0;
+    const checkScriptsReady = setInterval(() => {
+        scriptsReadyCheck++;
+        
+        const allLoaded = (
+            typeof window.drawingUtils !== 'undefined' &&
+            typeof window.CameraUtils !== 'undefined' &&
+            typeof window.FaceMesh !== 'undefined'
+        );
+        
+        if (allLoaded) {
+            console.log('✅ All MediaPipe scripts loaded successfully!');
+            clearInterval(checkScriptsReady);
+        } else if (scriptsReadyCheck > 30) {
+            // 30 checks = 15 seconds, give up
+            console.error('❌ MediaPipe scripts failed to load after 15 seconds');
+            console.warn('⚠️ Check console Network tab (F12) for failed requests');
+            console.warn('⚠️ Try: Hard refresh (Ctrl+Shift+R) or check internet connection');
+            clearInterval(checkScriptsReady);
+        }
+    }, 500);
+    
+    console.log('='.repeat(60));
+    console.log('🔍 MEDIAPIPE DIAGNOSTICS - Asset Verification');
+    console.log('='.repeat(60));
+    
+    // Check if scripts loaded
+    setTimeout(() => {
+        const diagnostics = {
+            'drawingUtils loaded': typeof window.drawingUtils !== 'undefined',
+            'CameraUtils loaded': typeof window.CameraUtils !== 'undefined', 
+            'FaceMesh loaded': typeof window.FaceMesh !== 'undefined',
+            'locateFile configured': typeof window.locateFile === 'function'
+        };
+        
+        console.log('📊 Script Status:');
+        Object.entries(diagnostics).forEach(([name, status]) => {
+            console.log(`  ${status ? '✅' : '❌'} ${name}`);
+        });
+        
+        // Test CDN asset URLs (verify they're accessible)
+        console.log('\n🌐 Testing CDN Asset URLs:');
+        const cdnUrls = [
+            'https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh@0.4.1633559619/face_mesh_solution_packed_assets.data',
+            'https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh@0.4.1633559619/face_mesh_solution_packed_assets.wasm'
+        ];
+        
+        cdnUrls.forEach(url => {
+            fetch(url, { method: 'HEAD' })
+                .then(() => console.log(`  ✅ Accessible: ${url.split('/').pop()}`))
+                .catch(err => console.log(`  ❌ Not accessible: ${url.split('/').pop()} - ${err.message}`));
+        });
+        
+        // Test locateFile mapping
+        if (typeof window.locateFile === 'function') {
+            console.log('\n🔧 Testing locateFile callback:');
+            const testAssets = [
+                'face_mesh_solution_packed_assets.data',
+                'face_mesh_solution_packed_assets.wasm'
+            ];
+            testAssets.forEach(asset => {
+                const mappedUrl = window.locateFile(asset);
+                console.log(`  📁 ${asset}:`);
+                console.log(`     → ${mappedUrl}`);
+            });
+        }
+        
+        console.log('\n💡 If you see WASM errors:');
+        console.log('   1. Check Network tab (F12) for 404 errors on .data/.wasm files');
+        console.log('   2. Verify CDN is accessible: https://cdn.jsdelivr.net');
+        console.log('   3. Hard refresh: Ctrl+Shift+R (Windows) or Cmd+Shift+R (Mac)');
+        console.log('   4. Check CORS headers: Response should have "Access-Control-Allow-*"');
+        console.log('='.repeat(60));
+    }, 1500); // Wait for scripts to fully load
+</script>
+
+<script>
+let lastEvent = "";
+// ================= DATA =================
+console.log('Exam page script loaded');
+window.addEventListener('error', event => {
+    console.error('Exam page error:', event.message, 'at', event.filename + ':' + event.lineno + ':' + event.colno);
+});
+window.addEventListener('unhandledrejection', event => {
+    console.error('Unhandled promise rejection:', event.reason);
+});
+// Safe element access with null checks
+function getElementSafe(id) {
+    const elem = document.getElementById(id);
+    if (!elem) {
+        console.warn(`⚠️ Element not found: ${id}`);
+    }
+    return elem;
+}
+
+const STUDENT_ID = parseInt(getElementSafe("student_id")?.value || 0) || 0;
+const EXAM_ID = parseInt(getElementSafe("exam_id")?.value || 0) || 0;
+let duration = (parseInt(getElementSafe("duration_minutes")?.value || 0) || 0) * 60;
+let examStarted = false;
+let currentEvent = "";
+let lastSentTime = 0;
+let frameCount = 0;
+const FRAME_SKIP = 2;
+const EXAM_TYPE = "{{ exam_type }}" || 'MCQ';
+
+const videoElement = getElementSafe("video");
+const cameraOverlay = getElementSafe("cameraOverlay");
+const warningBox = getElementSafe("warningBox");
+const statusFace = getElementSafe("statusFace");
+const statusHead = getElementSafe("statusHead");
+const statusBrowser = getElementSafe("statusBrowser");
+const statusViolations = getElementSafe("statusViolations");
+let violationCount = 0;
+
+// Make elements global for proctor.js
+window.videoElement = videoElement;
+window.statusFace = statusFace;
+window.statusHead = statusHead;
+window.statusBrowser = statusBrowser;
+window.statusViolations = statusViolations;
+window.warningBox = warningBox;
+let questionCards = [];
+let navButtons = [];
+let prevBtn = null;
+let nextBtn = null;
+let currentQuestionDisplay = null;
+let questionTitle = null;
+let answeredCountEl = null;
+let currentQuestionIndex = 0;
+
+function initializeExamPage() {
+    try {
+        questionCards = Array.from(document.querySelectorAll('.question-card')) || [];
+        navButtons = Array.from(document.querySelectorAll('.question-step')) || [];
+        prevBtn = getElementSafe('prevBtn');
+        nextBtn = getElementSafe('nextBtn');
+        currentQuestionDisplay = getElementSafe('currentQuestion');
+        questionTitle = getElementSafe('questionTitle');
+        answeredCountEl = getElementSafe('answeredCount');
+        
+        console.log('✅ Exam page initialized - Questions:', questionCards.length, 'Nav buttons:', navButtons.length);
+
+        questionCards.forEach((card) => {
+            const inputs = card?.querySelectorAll('input[type="radio"]');
+            inputs?.forEach((input) => {
+                input.addEventListener('change', () => {
+                    updateAnsweredCount();
+                    setActiveQuestion(currentQuestionIndex);
+                });
+            });
+            const textarea = card?.querySelector('textarea');
+            if (textarea) {
+                textarea.addEventListener('input', () => {
+                    updateAnsweredCount();
+                });
+            }
+        });
+
+        navButtons.forEach((button) => {
+            button?.addEventListener('click', () => {
+                setActiveQuestion(Number(button?.dataset?.index));
+            });
+        });
+
+        if (prevBtn) {
+            prevBtn.addEventListener('click', () => setActiveQuestion(currentQuestionIndex - 1));
+        }
+
+        if (nextBtn) {
+            nextBtn.addEventListener('click', () => setActiveQuestion(currentQuestionIndex + 1));
+        }
+
+        const submitFormBtn = getElementSafe('submitFormBtn');
+        if (submitFormBtn) {
+        submitFormBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            console.log('Submit button clicked');
+            
+            // Show confirmation
+            const confirmed = confirm('Are you sure you want to submit the exam?\n\nYour answers will be locked and you cannot make changes after submission.');
+            if (confirmed) {
+                console.log('Submission confirmed - submitting form');
+                document.getElementById('examForm').submit();
+            } else {
+                console.log('Submission cancelled');
+            }
+        });
+    }
+
+        const submitSideBtn = getElementSafe('submitSideBtn');
+        if (submitSideBtn) {
+            submitSideBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                console.log('Side submit button clicked');
+                
+                // Show confirmation
+                const confirmed = confirm('Are you sure you want to submit the exam?\n\nYour answers will be locked and you cannot make changes after submission.');
+                if (confirmed) {
+                    console.log('Submission confirmed - submitting form');
+                    getElementSafe('examForm')?.submit();
+                } else {
+                    console.log('Submission cancelled');
+                }
+            });
+        }
+        
+        console.log('✅ Exam page event listeners bound');
+    } catch (err) {
+        console.error('❌ Error initializing exam page:', err.message);
+    }
+}
+
+function updateAnsweredCount() {
+    try {
+        if (!answeredCountEl) return;
+        
+        if (EXAM_TYPE === 'Written') {
+            // For written exams, count filled textareas
+            const answered = questionCards.filter(card => {
+                const textarea = card?.querySelector('textarea');
+                return textarea && textarea.value.trim().length > 0;
+            }).length;
+            answeredCountEl.innerText = answered;
+        } else {
+            // For MCQ exams, count checked radio buttons
+            const answered = questionCards.filter(card => card?.querySelector('input:checked')).length;
+            answeredCountEl.innerText = answered;
+        }
+    } catch (err) {
+        console.error('❌ Error updating answered count:', err.message);
+    }
+}
+
+function setActiveQuestion(index) {
+    try {
+        if (EXAM_TYPE === 'Written') {
+            // For written exams, all questions are visible, no navigation needed
+            return;
+        }
+        
+        if (index < 0 || index >= questionCards.length) return;
+        currentQuestionIndex = index;
+        questionCards.forEach((card, idx) => {
+            card?.classList?.toggle('active', idx === index);
+        });
+
+        navButtons.forEach((button, idx) => {
+            button?.classList?.toggle('active', idx === index);
+            const answered = questionCards[idx]?.querySelector('input:checked') || 
+                            (questionCards[idx]?.querySelector('textarea') && questionCards[idx]?.querySelector('textarea')?.value?.trim());
+            button?.classList?.toggle('answered', Boolean(answered));
+        });
+
+        if (currentQuestionDisplay) currentQuestionDisplay.innerText = index + 1;
+        const currentCard = questionCards[index];
+        if (currentCard && questionTitle) {
+            const questionText = currentCard.querySelector('.question-text');
+            if (questionText) {
+                questionTitle.innerText = questionText.innerText;
+            }
+        }
+
+        if (prevBtn) prevBtn.disabled = index === 0;
+        if (nextBtn) nextBtn.disabled = index === questionCards.length - 1;
+    } catch (err) {
+        console.error('❌ Error setting active question:', err.message);
+    }
+}
+
+function showExamForm() {
+    try {
+        const examForm = getElementSafe('examForm');
+        if (examForm) {
+            examForm.style.display = 'flex';
+        }
+        
+        if (EXAM_TYPE === 'Written') {
+            // For written exams, show all questions
+            questionCards.forEach(card => {
+                card?.classList?.add('active');
+            });
+            // Hide navigation elements for written exams
+            document.querySelector('.action-row')?.style && (document.querySelector('.action-row').style.display = 'none');
+            document.querySelector('.exam-right-panel .nav-box')?.style && (document.querySelector('.exam-right-panel .nav-box').style.display = 'none');
+            // Update the question counter to show total
+            if (currentQuestionDisplay) currentQuestionDisplay.innerText = questionCards.length;
+            if (questionTitle) questionTitle.innerText = `Written Exam - ${questionCards.length} Questions`;
+        } else {
+            // For MCQ exams, show first question
+            setActiveQuestion(0);
+        }
+        
+        updateAnsweredCount();
+    } catch (err) {
+        console.error('❌ Error showing exam form:', err.message);
+    }
+}
+
+function updateStatus(face, head, browser) {
+    try {
+        if (statusFace) statusFace.innerText = face;
+        if (statusHead) statusHead.innerText = head;
+        if (statusBrowser) statusBrowser.innerText = browser;
+    } catch (err) {
+        console.error('❌ Error updating status:', err.message);
+    }
+}
+
+function displayWarning(message, level = "safe") {
+    try {
+        const box = getElementSafe('warningBox') || warningBox;
+        if (!box) {
+            console.warn('⚠️ Warning box element not found');
+            return;
+        }
+
+        box.innerText = message;
+        box.className = "warning-box";
+        box.style.display = "block";
+
+        // Add animation
+        box.style.animation = 'none';
+        setTimeout(() => {
+            box.style.animation = 'pulse 0.5s ease-in-out';
+        }, 10);
+
+        if (level === "high") {
+            box.classList.add("danger");
+            box.style.backgroundColor = "#dc2626";  // Red for high risk
+            box.style.color = "white";
+            box.style.fontWeight = "bold";
+            box.style.fontSize = "16px";
+            box.style.padding = "12px";
+            box.style.borderRadius = "6px";
+            box.style.boxShadow = "0 4px 6px rgba(220, 38, 38, 0.3)";
+            console.log("🔴 HIGH RISK:", message);
+        } else if (level === "medium") {
+            box.classList.add("warning");
+            box.style.backgroundColor = "#f59e0b";  // Orange for medium risk
+            box.style.color = "white";
+            box.style.fontWeight = "bold";
+            box.style.fontSize = "16px";
+            box.style.padding = "12px";
+            box.style.borderRadius = "6px";
+            box.style.boxShadow = "0 4px 6px rgba(245, 158, 11, 0.3)";
+            console.log("🟠 MEDIUM RISK:", message);
+        } else if (level === "safe") {
+            box.innerText = "✅ Safe";
+            box.classList.remove("danger", "warning");
+            box.style.backgroundColor = "#10b981";  // Green for safe
+            box.style.color = "white";
+            box.style.fontWeight = "bold";
+            box.style.fontSize = "14px";
+            box.style.padding = "12px";
+            box.style.borderRadius = "6px";
+            box.style.boxShadow = "0 4px 6px rgba(16, 185, 129, 0.3)";
+            console.log("✅ Safe");
+        }
+    } catch (err) {
+        console.error('❌ Error displaying warning:', err.message);
+    }
+}
+
+// ================= FULLSCREEN =================
+function enterFullscreen() {
+    const elem = document.documentElement;
+    
+    if (elem.requestFullscreen) {
+        return elem.requestFullscreen();
+    } else if (elem.webkitRequestFullscreen) { // Safari
+        return elem.webkitRequestFullscreen();
+    } else if (elem.msRequestFullscreen) { // IE11
+        return elem.msRequestFullscreen();
+    } else {
+        console.log("Fullscreen not supported");
+        return Promise.reject(new Error("Fullscreen not supported"));
+    }
+}
+
+function exitFullscreen() {
+    if (document.exitFullscreen) {
+        document.exitFullscreen();
+    } else if (document.webkitExitFullscreen) { // Safari
+        document.webkitExitFullscreen();
+    } else if (document.msExitFullscreen) { // IE11
+        document.msExitFullscreen();
+    }
+}
+
+function isFullscreen() {
+    return !!(document.fullscreenElement || 
+             document.webkitFullscreenElement || 
+             document.msFullscreenElement);
+}
+
+// ================= FULLSCREEN CHANGE DETECTION - DISABLED =================
+// Fullscreen detection is disabled - focus only on head pose detection from proctor_new.js
+// document.addEventListener('fullscreenchange', handleFullscreenChange);
+// document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
+// document.addEventListener('msfullscreenchange', handleFullscreenChange);
+
+/*
+function handleFullscreenChange() {
+    if (examStarted && !isFullscreen()) {
+        logEvent("Fullscreen Exited");
+        updateStatus(statusFace.innerText, statusHead.innerText, "Inactive");
+        displayWarning("⚠ Fullscreen Exited", "high");
+        
+        // Try to re-enter fullscreen
+        setTimeout(() => {
+            if (!isFullscreen()) {
+                alert("⚠️ Fullscreen mode is required. Please stay in fullscreen mode.");
+                enterFullscreen();
+            }
+        }, 1000);
+    }
+}
+*/
+
+// ================= START =================
+async function startExam() {
+    examStarted = true;
+    window.examStarted = true;
+    console.log('✅ startExam triggered');
+    
+    // ✅ NEW: Diagnostic logging
+    const studentId = document.getElementById('student_id')?.value;
+    const examId = document.getElementById('exam_id')?.value;
+    console.log(`📋 Exam Details: student_id=${studentId}, exam_id=${examId}`);
+    console.log(`🔍 window.logEvent available: ${typeof window.logEvent === 'function'}`);
+    console.log(`🔍 window.examStarted: ${window.examStarted}`);
+
+    try {
+        await enterFullscreen();
+        console.log('✅ Fullscreen entered');
+    } catch (err) {
+        console.warn('⚠️ Fullscreen failed:', err);
+        displayWarning("⚠ Fullscreen failed. Continuing without fullscreen.", "warning");
+    }
+
+    const startBox = getElementSafe("startBox");
+    if (startBox) {
+        startBox.style.display = "none";
+        console.log('✅ Start box hidden');
+    }
+    showExamForm();
+    updateStatus("Safe", "Centered", "Active");
+    displayWarning("✅ Exam Running - Face Detection Active", "safe");
+    console.log('✅ Exam started');
+    
+    // Start simple detection
+    const ok = await window.initSimpleDetection();
+    console.log('Detection:', ok ? '✅ Started' : '❌ Failed');
+    
+    console.log('✅ Starting timer...');
+    startTimer();
+}
+
+window.startExam = startExam;
+window.displayWarning = displayWarning;
+window.logEvent = logEvent;
+window.updateStatus = updateStatus;
+
+function bindExamPageEvents() {
+    try {
+        const startExamBtn = getElementSafe('startExamBtn');
+        if (startExamBtn) {
+            startExamBtn.addEventListener('click', () => {
+                console.log('✅ Start exam button clicked');
+                startExam();
+            });
+        } else {
+            console.warn('⚠️ Start exam button not found');
+        }
+    } catch (err) {
+        console.error('❌ Error binding exam page events:', err.message);
+    }
+}
+
+if (document.readyState === 'loading') {
+    window.addEventListener('DOMContentLoaded', () => {
+        // Verify DOM elements
+        console.log('🔍 DOM Content Loaded - checking elements:');
+        console.log('   Video element:', getElementSafe('video') ? '✅ Found' : '❌ Not found');
+        console.log('   Overlay element:', getElementSafe('cameraOverlay') ? '✅ Found' : '❌ Not found');
+        console.log('   Warning box:', getElementSafe('warningBox') ? '✅ Found' : '❌ Not found');
+        
+        initializeExamPage();
+        bindExamPageEvents();
+    });
+} else {
+    initializeExamPage();
+    bindExamPageEvents();
+}
+
+// ================= TIMER =================
+function startTimer() {
+    const timer = setInterval(() => {
+        let minutes = Math.floor(duration / 60);
+        let seconds = duration % 60;
+        document.getElementById("timer").innerText =
+            minutes + ":" + (seconds < 10 ? "0" : "") + seconds;
+        if (duration <= 0) {
+            clearInterval(timer);
+            alert("⏰ Time Up! Submitting exam...");
+            document.getElementById("examForm").submit();
+        }
+        duration--;
+    }, 1000);
+}
+
+// ================= LOG EVENT =================
+function logEvent(event) {
+    if (!window.examStarted) {
+        console.warn(`⚠️ Exam not started yet - skipping log`);
+        return;
+    }
+    
+    if (!event) {
+        console.warn(`⚠️ No event provided to logEvent`);
+        return;
+    }
+
+    try {
+        console.log(`📝 logEvent called: ${event}`);
+
+        // ✅ FIX: Get elements safely and validate
+        const studentIdElem = getElementSafe("student_id");
+        const examIdElem = getElementSafe("exam_id");
+        const statusViolationsElem = getElementSafe("statusViolations");
+
+        const STUDENT_ID = parseInt(studentIdElem?.value || 0) || 0;
+        const EXAM_ID = parseInt(examIdElem?.value || 0) || 0;
+
+        console.log(`🔍 Values: STUDENT_ID=${STUDENT_ID}, EXAM_ID=${EXAM_ID}`);
+
+        if (!STUDENT_ID || !EXAM_ID) {
+            console.error(`❌ Missing STUDENT_ID (${STUDENT_ID}) or EXAM_ID (${EXAM_ID})`);
+            return;
+        }
+
+        // Update violation counter
+        if (statusViolationsElem) {
+            let count = parseInt(statusViolationsElem.innerText || 0);
+            count++;
+            statusViolationsElem.innerText = count;
+            console.log(`✅ Violation counter updated: ${count}`);
+        }
+
+        // Determine warning level based on event type
+        const criticalEvents = ["Face Not Detected", "Multiple Faces Detected", "Tab Switched", "Fullscreen Exited"];
+        const level = criticalEvents.includes(event) ? "high" : "medium";
+
+        // Display specific warning message
+        if (event === "Looking Left") {
+            displayWarning("⚠ Left Head Movement", "medium");
+        } else if (event === "Looking Right") {
+            displayWarning("⚠ Right Head Movement", "medium");
+        } else {
+            displayWarning(event, level);
+        }
+
+        // Log to database
+        console.log(`💾 Sending to /log_cheating: event=${event}`);
+        fetch('/log_cheating', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                student_id: STUDENT_ID,
+                exam_id: EXAM_ID,
+                event: event
+            })
+        })
+        .then(res => {
+            console.log(`📤 Response status: ${res.status}`);
+            return res.json();
+        })
+        .then(data => {
+            console.log(`✅ Database logged: event=${event}, count=${data.event_count || '?'}`);
+        })
+        .catch(err => {
+            console.error(`❌ Database error: ${err}`);
+        });
+
+    } catch (err) {
+        console.error(`❌ Error in logEvent: ${err.message}`);
+    }
+}
+
+if (videoElement) {
+    videoElement.addEventListener('loadeddata', () => {
+        cameraOverlay?.classList?.add('hidden');
+    });
+}
+
+// ✅ DIAGNOSTIC FUNCTION - Call from console: testDetection()
+function testDetection() {
+    console.log(`\n🔍 ========== DETECTION SYSTEM DIAGNOSTIC ==========`);
+    
+    // Check exam state
+    const studentId = document.getElementById('student_id')?.value;
+    const examId = document.getElementById('exam_id')?.value;
+    console.log(`📋 Exam State:`);
+    console.log(`   - Student ID: ${studentId || '❌ MISSING'}`);
+    console.log(`   - Exam ID: ${examId || '❌ MISSING'}`);
+    console.log(`   - examStarted: ${typeof examStarted === 'undefined' ? '❌ undefined' : examStarted}`);
+    console.log(`   - window.examStarted: ${window.examStarted || '❌ false'}`);
+    
+    // Check function availability
+    console.log(`\n🔧 Functions Available:`);
+    console.log(`   - window.logEvent: ${typeof window.logEvent === 'function' ? '✅ available' : '❌ NOT FOUND'}`);
+    console.log(`   - displayWarning: ${typeof displayWarning === 'function' ? '✅ available' : '❌ NOT FOUND'}`);
+    console.log(`   - getElementSafe: ${typeof getElementSafe === 'function' ? '✅ available' : '❌ NOT FOUND'}`);
+    
+    // Check detection state
+    console.log(`\n📹 Detection State:`);
+    console.log(`   - detectionState: ${typeof detectionState === 'undefined' ? '❌ undefined' : '✅ exists'}`);
+    
+    // Manual test
+    console.log(`\n🧪 Testing manual log:`);
+    if (window.logEvent) {
+        window.logEvent('Looking Left');
+        console.log(`✅ Manual test: Looking Left logged`);
+    } else {
+        console.error(`❌ Cannot test - window.logEvent not available`);
+    }
+    
+    console.log(`\n========== END DIAGNOSTIC ==========\n`);
+}
+
+// Make it available globally
+window.testDetection = testDetection;
+console.log(`💡 Tip: Run testDetection() in console to diagnose issues`);
+
+</script>
+<!-- ✅ SIMPLE LEFT/RIGHT DETECTION -->
+<script src="{{ url_for('static', filename='js/simple_detection.js') }}"></script>
+</body>
+</html>

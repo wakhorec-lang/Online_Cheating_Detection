@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Student Login</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+
+<div class="login-container">
+    <div class="login-card">
+        <span class="badge">Student Portal</span>
+        <h2 class="main-title">Student Login</h2>
+        <p class="subtitle">Securely access your exams and keep your webcam active while taking assessments.</p>
+
+        <form method="POST">
+            <div class="input-group">
+                <label for="email">Email</label>
+                <input id="email" type="email" name="email" placeholder="Enter your email" required>
+            </div>
+
+            <div class="input-group">
+                <label for="password">Password</label>
+                <input id="password" type="password" name="password" placeholder="Enter your password" required>
+            </div>
+
+            <button type="submit" class="login-btn">Login</button>
+        </form>
+
+        <div class="help-links">
+            <p>Don't have an account? <a href="{{ url_for('student_register') }}">Register</a></p>
+            <p><a href="{{ url_for('home') }}">← Back to Home</a></p>
+        </div>
+    </div>
+</div>
+
+</body>
+</html>

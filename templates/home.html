@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Online Cheating Detection</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+
+<div class="page-shell">
+    <div class="top-bar">
+        <div class="brand">Proctor<span>AI</span></div>
+        <div class="badge">Smart exam monitoring</div>
+    </div>
+
+    <div class="hero-grid">
+        <div class="hero-copy">
+            <h1>Secure online exams with AI-powered proctoring.</h1>
+            <p>Monitor student behavior in real time, detect suspicious activity, and keep exam integrity high without slowing down the user experience.</p>
+            <div class="hero-actions">
+                <a class="btn btn-primary" href="{{ url_for('student_login') }}">Student Portal</a>
+                <a class="btn btn-secondary" href="{{ url_for('admin_login') }}">Admin Dashboard</a>
+            </div>
+        </div>
+
+        <div class="hero-panel">
+            <div class="selection-header">Select your role</div>
+            <div class="options-grid">
+                <div class="option-card">
+                    <div class="option-icon">🎓</div>
+                    <div class="option-copy">
+                        <h3>Student Access</h3>
+                        <p>Begin your exam, stay monitored, and get instant alerts when proctoring rules are triggered.</p>
+                        <a href="{{ url_for('student_login') }}">Start as Student</a>
+                    </div>
+                </div>
+                <div class="option-card">
+                    <div class="option-icon">🛡️</div>
+                    <div class="option-copy">
+                        <h3>Admin Access</h3>
+                        <p>Manage exams, review logs, and ensure remote assessment integrity with a centralized control panel.</p>
+                        <a href="{{ url_for('admin_login') }}">Start as Admin</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="features">
+        <div class="feature-card">
+            <h4>Real-time face monitoring</h4>
+            <p>Detect absent or multiple faces immediately and capture accurate exam violations as they happen.</p>
+        </div>
+        <div class="feature-card">
+            <h4>Smart head and gaze tracking</h4>
+            <p>Track head movement and gaze patterns to catch suspicious behavior without intrusive hardware.</p>
+        </div>
+        <div class="feature-card">
+            <h4>Fast, polished interface</h4>
+            <p>Enjoy a modern dashboard experience with clean navigation and clear status indicators for every session.</p>
+        </div>
+    </div>
+</div>
+
+</body>
+</html>

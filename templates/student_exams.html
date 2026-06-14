@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>My Exams</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+
+<div class="dashboard-wrapper">
+
+    <div class="sidebar">
+        <h2 class="logo">Exam Portal</h2>
+        <ul>
+            <li><a href="{{ url_for('student_dashboard') }}">Dashboard</a></li>
+            <li><a href="{{ url_for('student_exams') }}">Exams</a></li>
+            <li><a href="{{ url_for('student_results') }}">Results</a></li>
+            <li><a href="{{ url_for('student_logout') }}">Logout</a></li>
+        </ul>
+    </div>
+
+    <div class="main-content">
+
+        <div class="welcome-card">
+            <h2>My Exams</h2>
+        </div>
+
+        {% for exam in exams %}
+        <div class="admin-exam-card">
+            <div>
+                <h4>{{ exam.title }}</h4>
+                <p>Duration: {{ exam.duration }} minutes</p>
+                <p>Type: {{ exam.exam_type if exam.exam_type else 'MCQ' }}</p>
+
+                {% if exam.id in attempted_ids %}
+                    <p class="pass">Status: Attempted</p>
+                {% else %}
+                    <p class="fail">Status: Not Attempted</p>
+                {% endif %}
+            </div>
+
+            <div class="exam-actions">
+                {% if exam.id not in attempted_ids %}
+                <a href="{{ url_for('start_exam', exam_id=exam.id) }}">
+                    <button>Start Exam</button>
+                </a>
+                {% else %}
+                    <button disabled>Completed</button>
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+
+    </div>
+
+</div>
+
+</body>
+</html>

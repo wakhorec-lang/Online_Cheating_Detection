@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>My Results</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+
+<div class="page-shell">
+    <div class="top-bar">
+        <div class="brand">Proctor<span>AI</span></div>
+        <a class="btn btn-secondary" href="{{ url_for('student_dashboard') }}">Back to Dashboard</a>
+    </div>
+
+    <div class="table-panel">
+        <h2>My Results</h2>
+
+        <table class="result-table">
+            <thead>
+                <tr>
+                    <th>Exam</th>
+                    <th>Type</th>
+                    <th>Score</th>
+                    <th>Percentage</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for result in results %}
+                <tr>
+                    <td>{{ result.title }}</td>
+                    <td>{{ result.exam_type }}</td>
+                    <td>{% if result.score is not none %}{{ result.score }}{% else %}N/A{% endif %}</td>
+                    <td>{% if result.percentage is not none %}{{ result.percentage }}%{% else %}N/A{% endif %}</td>
+                    <td>
+                        <span class="status-pill {{ result.status_class }}">{{ result.status_text }}</span>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <div class="chart-card">
+        <canvas id="resultChart"></canvas>
+    </div>
+</div>
+
+<script>
+    const labels = [{% for r in results %}"{{ r.title }}",{% endfor %}];
+    const data = [{% for r in results %}{{ r.percentage if r.percentage is not none else 0 }},{% endfor %}];
+
+    new Chart(document.getElementById('resultChart'), {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: 'Percentage (%)',
+                data: data,
+                backgroundColor: '#2563eb'
+            }]
+        },
+        options: {
+            responsive: true,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    max: 100
+                }
+            }
+        }
+    });
+</script>
+
+</body>
+</html>

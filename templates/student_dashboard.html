@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Student Dashboard</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+
+<body>
+
+<div class="dashboard-wrapper">
+
+    <aside class="sidebar">
+        <div class="logo">🎓 Exam Portal</div>
+        <ul>
+            <li><a href="{{ url_for('student_dashboard') }}" class="active">Dashboard</a></li>
+            <li><a href="{{ url_for('student_results') }}">Results</a></li>
+            <li><a href="{{ url_for('student_logout') }}">Logout</a></li>
+        </ul>
+    </aside>
+
+    <main class="main-content">
+        <div class="top-bar">
+            <div>
+                <h1 class="section-title">Welcome, {{ name }}</h1>
+                <p class="section-subtitle">Explore available exams and complete them securely with built-in proctoring.</p>
+            </div>
+            <a href="{{ url_for('student_results') }}" class="btn btn-secondary">View Results</a>
+        </div>
+
+        <div class="stats-grid">
+            {% set attempted_count = 0 %}
+            {% set pending_count = 0 %}
+            {% for exam in exams %}
+                {% if exam.attempted %}
+                    {% set attempted_count = attempted_count + 1 %}
+                {% else %}
+                    {% set pending_count = pending_count + 1 %}
+                {% endif %}
+            {% endfor %}
+
+            <div class="stat-card">
+                <h3>{{ exams | length }}</h3>
+                <p>Total Exams</p>
+            </div>
+            <div class="stat-card">
+                <h3>{{ attempted_count }}</h3>
+                <p>Attempted</p>
+            </div>
+            <div class="stat-card">
+                <h3>{{ pending_count }}</h3>
+                <p>Pending</p>
+            </div>
+        </div>
+
+        <section class="section">
+            <div class="selection-header">📚 Available Exams</div>
+            <div class="filter-bar">
+                <a href="{{ url_for('student_dashboard') }}" class="active">All</a>
+                <a href="{{ url_for('attempted_exams') }}">Attempted</a>
+                <a href="{{ url_for('not_attempted_exams') }}">Not Attempted</a>
+            </div>
+
+            {% if exams %}
+                {% for exam in exams %}
+                    <div class="exam-card">
+                        <div class="exam-info">
+                            <h4>{{ exam.title }}</h4>
+                            <p>⏱ Duration: {{ exam.duration }} minutes</p>
+                            <p>Status:
+                                {% if exam.attempted %}
+                                    <span class="status attempted">✔ Attempted</span>
+                                {% else %}
+                                    <span class="status not-attempted">⏳ Not Attempted</span>
+                                {% endif %}
+                            </p>
+                        </div>
+
+                        <div class="exam-actions">
+                            {% if not exam.attempted %}
+                                <a href="{{ url_for('start_exam', exam_id=exam.id) }}" class="btn btn-primary">Start</a>
+                            {% else %}
+                                <span class="btn disabled-btn">Completed</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                {% endfor %}
+            {% else %}
+                <div class="empty-state">
+                    <h3>No exams available right now.</h3>
+                    <p>Please check back soon for new assessments.</p>
+                </div>
+            {% endif %}
+        </section>
+    </main>
+
+</div>
+
+</body>
+</html>

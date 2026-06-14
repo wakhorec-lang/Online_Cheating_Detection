@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Admin Login</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+
+<div class="login-container">
+    <div class="login-card">
+        <span class="badge">Admin Portal</span>
+        <h2 class="main-title">Admin Login</h2>
+        <p class="subtitle">Secure admin access for exam management, monitoring, and controls.</p>
+
+        <form method="POST">
+            <div class="input-group">
+                <label for="email">Email</label>
+                <input id="email" type="email" name="email" placeholder="Enter admin email" required>
+            </div>
+
+            <div class="input-group">
+                <label for="password">Password</label>
+                <input id="password" type="password" name="password" placeholder="Enter password" required>
+            </div>
+
+            <button type="submit" class="login-btn">Login</button>
+        </form>
+
+        <div class="help-links">
+            <p>New admin? <a href="/admin_register">Register Here</a></p>
+            <p><a href="/">← Back to Home</a></p>
+        </div>
+    </div>
+</div>
+
+</body>
+</html>

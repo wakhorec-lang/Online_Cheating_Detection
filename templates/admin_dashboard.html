@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Admin Dashboard</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+
+<body>
+
+<div class="dashboard-wrapper">
+
+    <aside class="sidebar">
+        <div class="logo">🎓 Exam Portal</div>
+        <ul>
+            <li><a href="{{ url_for('admin_dashboard') }}" class="active">Dashboard</a></li>
+            <li><a href="{{ url_for('create_exam') }}">Create Exam</a></li>
+            <li><a href="{{ url_for('admin_logout') }}">Logout</a></li>
+        </ul>
+    </aside>
+
+    <main class="main-content">
+        <div class="top-bar">
+            <div>
+                <h1 class="section-title">Welcome, {{ name }}</h1>
+                <p class="section-subtitle">Manage exams, view results, and monitor your students from one modern dashboard.</p>
+            </div>
+            <a href="{{ url_for('create_exam') }}" class="btn btn-primary">Create Exam</a>
+        </div>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+          {% if messages %}
+            {% for category, message in messages %}
+              <div class="warning-box {{ 'safe' if category == 'success' else 'warning' }}">
+                {{ message }}
+              </div>
+            {% endfor %}
+          {% endif %}
+        {% endwith %}
+
+        <div class="stats-grid">
+            <div class="stat-card">
+                <h3>{{ total_students }}</h3>
+                <p>Total Students</p>
+            </div>
+            <div class="stat-card">
+                <h3>{{ total_exams }}</h3>
+                <p>Total Exams</p>
+            </div>
+            <div class="stat-card">
+                <h3>{{ total_attempts }}</h3>
+                <p>Total Attempts</p>
+            </div>
+        </div>
+
+        <section class="section">
+            <div class="selection-header">🏆 Top Performer</div>
+            <div class="card">
+                {% if topper and topper.score is not none %}
+                    <p><strong>{{ topper.name }}</strong> has the highest score with {{ topper.score }} marks.</p>
+                {% else %}
+                    <p>No attempts have been made yet.</p>
+                {% endif %}
+            </div>
+        </section>
+
+        <section class="section">
+            <div class="selection-header">📊 Exam Results</div>
+            <div class="card">
+                <table class="result-table">
+                    <thead>
+                        <tr>
+                            <th>Student</th>
+                            <th>Exam</th>
+                            <th>Score</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for r in results %}
+                            <tr>
+                                <td>{{ r.name }}</td>
+                                <td>{{ r.exam_title }}</td>
+                                <td>{{ r.score if r.score is not none else '—' }}</td>
+                                <td>
+                                    {% if r.score is none %}
+                                        <span class="status not-attempted">Not Attempted</span>
+                                    {% elif r.status == 'Pass' %}
+                                        <span class="status attempted">Pass</span>
+                                    {% else %}
+                                        <span class="status fail">Fail</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <section class="section">
+            <div class="selection-header">📚 Your Exams
+                <a href="{{ url_for('delete_all_exams') }}" class="btn btn-danger" onclick="return confirm('Are you sure you want to delete ALL exams? This action cannot be undone.')">Delete All Exams</a>
+            </div>
+            {% for exam in exams %}
+                <div class="exam-card">
+                    <div>
+                        <h4>{{ exam.title }}</h4>
+                        <p>⏱ Duration: {{ exam.duration }} mins</p>
+                        <p>📌 Type: {{ exam.exam_type if exam.exam_type else 'MCQ' }}</p>
+                    </div>
+                    <div class="exam-actions">
+                        <a href="{{ url_for('view_questions', exam_id=exam.id) }}" class="btn btn-secondary">View</a>
+                        <a href="{{ url_for('delete_exam', exam_id=exam.id) }}" class="btn btn-danger">Delete</a>
+                    </div>
+                </div>
+            {% endfor %}
+        </section>
+    </main>
+
+</div>
+
+</body>
+</html>

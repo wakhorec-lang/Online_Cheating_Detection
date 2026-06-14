@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Add Question</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+
+<div class="form-wrapper">
+    <div class="form-card large-card">
+        <h2>Add Questions to Exam</h2>
+
+        <p class="help-links">Exam ID: {{ exam_id }}</p>
+        <p class="help-links">Total Questions Added: {{ total_questions }}</p>
+        <p class="help-links">Exam Type: <strong>{{ exam_type }}</strong></p>
+
+        {% if exam_type == 'Written' %}
+            <div class="warning-box warning">This is a written exam. Options and correct answer fields are not required.</div>
+        {% endif %}
+
+        {% if request.args.get('success') %}
+            <div class="warning-box safe">✅ Question Added Successfully!</div>
+        {% endif %}
+
+        <form method="POST">
+            <input type="hidden" name="exam_id" value="{{ exam_id }}">
+
+            {% if exam_type != 'Written' %}
+            <div class="form-group">
+                <label>Section</label>
+                <select name="section" required>
+                    <option value="Aptitude">Aptitude</option>
+                    <option value="Reasoning">Reasoning</option>
+                    <option value="Technical">Technical</option>
+                </select>
+            </div>
+            {% endif %}
+
+            <div class="form-group">
+                <label>Question</label>
+                <textarea name="question" placeholder="Enter Question" required></textarea>
+            </div>
+
+            {% if exam_type != 'Written' %}
+            <div class="form-group">
+                <label>Option A</label>
+                <input type="text" name="option_a" placeholder="Option A" required>
+            </div>
+            <div class="form-group">
+                <label>Option B</label>
+                <input type="text" name="option_b" placeholder="Option B" required>
+            </div>
+            <div class="form-group">
+                <label>Option C</label>
+                <input type="text" name="option_c" placeholder="Option C" required>
+            </div>
+            <div class="form-group">
+                <label>Option D</label>
+                <input type="text" name="option_d" placeholder="Option D" required>
+            </div>
+
+            <div class="form-group">
+                <label>Correct Answer</label>
+                <select name="correct_answer" required>
+                    <option value="A">Option A</option>
+                    <option value="B">Option B</option>
+                    <option value="C">Option C</option>
+                    <option value="D">Option D</option>
+                </select>
+            </div>
+            {% endif %}
+
+            <button type="submit" class="btn btn-primary">➕ Add Question</button>
+        </form>
+
+        <div class="help-links">
+            <a class="btn btn-secondary" href="{{ url_for('admin_dashboard') }}">✅ Finish Exam</a>
+        </div>
+    </div>
+</div>
+
+</body>
+</html>

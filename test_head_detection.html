@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Head Movement Detection Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #1a1a2e;
+            color: white;
+            padding: 20px;
+            margin: 0;
+        }
+        
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background: #16213e;
+            padding: 20px;
+            border-radius: 10px;
+        }
+        
+        h1 {
+            text-align: center;
+        }
+        
+        #video {
+            width: 100%;
+            height: 400px;
+            background: #000;
+            border-radius: 10px;
+            margin: 20px 0;
+            display: block;
+        }
+        
+        #status {
+            font-size: 24px;
+            text-align: center;
+            padding: 20px;
+            background: #0f3460;
+            border-radius: 10px;
+            margin: 20px 0;
+        }
+        
+        #leftCount, #rightCount, #centerCount {
+            font-size: 18px;
+            padding: 10px;
+            margin: 10px 0;
+            background: #0f3460;
+            border-radius: 5px;
+        }
+        
+        button {
+            width: 100%;
+            padding: 12px;
+            font-size: 16px;
+            background: #00d4ff;
+            color: #000;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+        
+        button:hover {
+            background: #00a8cc;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>🎯 Head Movement Detection</h1>
+    
+    <video id="video" autoplay muted playsinline></video>
+    
+    <div id="status">WAITING...</div>
+    
+    <div id="leftCount">👈 LEFT: 0</div>
+    <div id="rightCount">👉 RIGHT: 0</div>
+    <div id="centerCount">✅ CENTER: 0</div>
+    
+    <button id="startBtn">START DETECTION</button>
+    <button id="stopBtn" style="display:none;">STOP DETECTION</button>
+</div>
+
+<!-- MediaPipe Scripts -->
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh@0.4.1633559619/face_mesh.js"></script>
+
+<script>
+let faceMesh = null;
+let video = null;
+let isRunning = false;
+
+let leftCount = 0;
+let rightCount = 0;
+let centerCount = 0;
+let lastDetectedPosition = null;
+let lastUpdateTime = 0;
+
+// Initialize detection
+async function startDetection() {
+    try {
+        console.log('Starting detection...');
+        document.getElementById('status').innerText = '📹 Getting camera...';
+        
+        video = document.getElementById('video');
+        
+        // Get camera
+        const stream = await navigator.mediaDevices.getUserMedia({
+            video: { width: 640, height: 480 }
+        });
+        
+        video.srcObject = stream;
+        console.log('✅ Camera ready');
+        document.getElementById('status').innerText = '⏳ Loading FaceMesh...';
+        
+        // Wait for FaceMesh to be available
+        while (typeof window.FaceMesh === 'undefined') {
+            console.log('Waiting for FaceMesh...');
+            await new Promise(r => setTimeout(r, 500));
+        }
+        
+        console.log('✅ FaceMesh available');
+        
+        // Create FaceMesh
+        faceMesh = new window.FaceMesh({
+            locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh@0.4.1633559619/${file}`
+        });
+        
+        faceMesh.setOptions({
+            maxNumFaces: 1,
+            minDetectionConfidence: 0.5,
+            minTrackingConfidence: 0.5
+        });
+        
+        faceMesh.onResults(detectHead);
+        console.log('✅ FaceMesh initialized');
+        document.getElementById('status').innerText = '✅ FaceMesh Ready - Move your head!';
+        
+        // Start frame loop
+        isRunning = true;
+        document.getElementById('startBtn').style.display = 'none';
+        document.getElementById('stopBtn').style.display = 'block';
+        
+        processFrame();
+        
+    } catch (err) {
+        console.error('❌ Error:', err);
+        alert('Error: ' + err.message);
+        document.getElementById('status').innerText = '❌ ' + err.message;
+    }
+}
+
+function processFrame() {
+    if (!isRunning) return;
+    
+    if (video && video.readyState === video.HAVE_ENOUGH_DATA) {
+        faceMesh.send({ image: video });
+    }
+    
+    requestAnimationFrame(processFrame);
+}
+
+function detectHead(results) {
+    if (!results.multiFaceLandmarks || !results.multiFaceLandmarks[0]) {
+        document.getElementById('status').innerText = '❌ NO FACE';
+        return;
+    }
+    
+    const landmarks = results.multiFaceLandmarks[0];
+    
+    // Get jaw points
+    const leftJaw = landmarks[0];
+    const rightJaw = landmarks[255];
+    const nose = landmarks[1];
+    
+    // Calculate distances
+    const leftDist = Math.abs(nose.x - leftJaw.x);
+    const rightDist = Math.abs(nose.x - rightJaw.x);
+    const diff = Math.abs(leftDist - rightDist);
+    
+    console.log(`L: ${leftDist.toFixed(3)}, R: ${rightDist.toFixed(3)}, Diff: ${diff.toFixed(3)}`);
+    
+    let position = '';
+    
+    // Determine head position
+    if (leftDist > rightDist + 0.05) {
+        position = 'RIGHT';
+        document.getElementById('status').innerText = '👉 LOOKING RIGHT';
+    } else if (rightDist > leftDist + 0.05) {
+        position = 'LEFT';
+        document.getElementById('status').innerText = '👈 LOOKING LEFT';
+    } else {
+        position = 'CENTER';
+        document.getElementById('status').innerText = '✅ LOOKING CENTER';
+    }
+    
+    // Update count only once per position change (debounce)
+    const now = Date.now();
+    if (position !== lastDetectedPosition && now - lastUpdateTime > 500) {
+        if (position === 'LEFT') {
+            leftCount++;
+            document.getElementById('leftCount').innerText = '👈 LEFT: ' + leftCount;
+        } else if (position === 'RIGHT') {
+            rightCount++;
+            document.getElementById('rightCount').innerText = '👉 RIGHT: ' + rightCount;
+        } else if (position === 'CENTER') {
+            centerCount++;
+            document.getElementById('centerCount').innerText = '✅ CENTER: ' + centerCount;
+        }
+        lastDetectedPosition = position;
+        lastUpdateTime = now;
+    }
+}
+
+function stopDetection() {
+    isRunning = false;
+    if (faceMesh) faceMesh.close();
+    if (video.srcObject) {
+        video.srcObject.getTracks().forEach(track => track.stop());
+    }
+    
+    document.getElementById('startBtn').style.display = 'block';
+    document.getElementById('stopBtn').style.display = 'none';
+    document.getElementById('status').innerText = 'STOPPED';
+}
+
+// Button events
+document.getElementById('startBtn').addEventListener('click', startDetection);
+document.getElementById('stopBtn').addEventListener('click', stopDetection);
+</script>
+
+</body>
+</html>

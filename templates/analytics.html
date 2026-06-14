@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Analytics</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+
+<div class="page-shell">
+    <div class="top-bar">
+        <div class="brand">Proctor<span>AI</span></div>
+        <a class="btn btn-secondary" href="{{ url_for('admin_dashboard') }}">Back to Dashboard</a>
+    </div>
+
+    <div class="chart-card">
+        <h2>Section Wise Question Distribution</h2>
+        <canvas id="sectionChart"></canvas>
+    </div>
+
+    <div class="chart-card">
+        <h2>Student Score Distribution</h2>
+        <canvas id="scoreChart"></canvas>
+    </div>
+</div>
+
+<script>
+let sectionLabels = {{ section_data | map(attribute='section') | list | tojson }};
+let sectionCounts = {{ section_data | map(attribute='total_questions') | list | tojson }};
+
+new Chart(document.getElementById('sectionChart'), {
+    type: 'bar',
+    data: {
+        labels: sectionLabels,
+        datasets: [{
+            label: 'Questions per Section',
+            data: sectionCounts,
+            backgroundColor: '#2563eb'
+        }]
+    },
+    options: {
+        responsive: true,
+        plugins: {
+            legend: { display: false }
+        }
+    }
+});
+
+let scores = {{ scores | map(attribute='score') | list | tojson }};
+
+new Chart(document.getElementById('scoreChart'), {
+    type: 'line',
+    data: {
+        labels: scores.map((_, i) => "Student " + (i+1)),
+        datasets: [{
+            label: 'Student Scores',
+            data: scores,
+            borderColor: '#16a34a',
+            backgroundColor: 'rgba(22, 163, 74, 0.12)',
+            fill: true,
+            tension: 0.3
+        }]
+    },
+    options: {
+        responsive: true,
+        scales: {
+            y: {
+                beginAtZero: true,
+                max: 100
+            }
+        }
+    }
+});
+</script>
+
+</body>
+</html>
